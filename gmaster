@@ -338,7 +338,7 @@ object Gmaster {
       }
       rows.map(row => {
         row.cols.zipWithIndex.map({
-          case (col, index) => val t = col.str; t + " " * (columsMaxLength(index) - t.length)
+          case (col, index) => val t = col.str; t + " " * (columsMaxLength(index) - t.length) + " | "
         }).mkString
       }).mkString("\n")
     }
@@ -354,9 +354,9 @@ object Gmaster {
     val name = "List of commands"
     val cmd = "help"
     override def execute = {
-      List(LIST_REPOS, SHOW_STATUS, INIT, SYNC, DUMP).foreach(action => {
-        Out << Table(Row(Col(action.cmd), Col(action.name)))
-      })
+      println(Table(List(LIST_REPOS, SHOW_STATUS, INIT, SYNC, DUMP).map(action => {
+        Row(Col(action.cmd), Col(action.name))
+      }):_*))
     }
   }
 
