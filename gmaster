@@ -20,13 +20,6 @@ import scala.collection.mutable.ListBuffer
 
 case class GitMasterError(message: String) extends Exception(message)
 
-def run(processBuilder: ProcessBuilder) = {
-  val stdout = new StringBuilder
-  val stderr = new StringBuilder
-  val status = processBuilder ! ProcessLogger(stdout append _, stderr append _)
-  (stdout.toString, stderr.toString)
-}
-
 class AnimatedWaitingMessage(message: String) {
   var i = 1
 
@@ -74,11 +67,11 @@ object Out {
     println
     this
   }
-  def <(str:String) = {
+  def <(str:Any) = {
     println(str)
     this
   }
-  def <<(str:String) = {
+  def <<(str:Any) = {
     print(str)
     this
   }
@@ -89,39 +82,36 @@ object GitStatus extends Enumeration {
 }
 
 object Git {
+
+  private def run(processBuilder: ProcessBuilder):String = {
+    val stdout = new StringBuilder
+    val stderr = new StringBuilder
+    val status = processBuilder ! ProcessLogger(stdout append _, stderr append _)
+    if (status != 0)
+      throw new GitMasterError(stderr.toString)
+    stdout.toString
+  }
   def branch(dir: File):String = {
-    val (res, err) = run(Process("git branch", dir) #| "grep \\*")
-    if (!res.isEmpty)
-      res.replace("*", "")
-    else {
-      "N/A"
-    }
+    run(Process("git branch", dir) #| "grep \\*").replace("*", "").trim
+  }
+  def fetch(dir: File):String = {
+    run(Process("git fetch", dir))
   }
   def status(dir: File):GitStatus.Value = {
-    run(Process("git fetch", dir))
-    val status = run(Process("git status", dir))
-    status.productIterator.mkString match {
+    run(Process("git status", dir)) match {
       case x if x.contains("not staged") => GitStatus.UNSTAGE_FILES
       case x if x.contains("up-to-date") => GitStatus.UP_TO_DATE
       case x if x.contains("git pull") => GitStatus.NOT_SYNC
       case x if x.contains("nothing to commit") => GitStatus.NO_REMOTE
-      case "error" => GitStatus.UNEXPECTED_ERROR
-      case x => GitStatus.UNEXPECTED_ERROR
+      case _ => GitStatus.UNEXPECTED_ERROR
     }
   }
-  def pull(dir: File) = {
-    run(Process("git pull", dir))
+  def pull(dir: File):String = run(Process("git pull", dir))
+  def remoteUrl(dir: File):String = run(Process("git remote show origin", dir)).split(" ").find(_.contains(".git")) match {
+    case Some(url) => url
+    case None => throw new GitMasterError("Impossible to parse the remote url of " + dir.getName)
   }
-  def remoteUrl(dir: File):Try[String] = Try({
-    val output = run(Process("git remote show origin", dir))
-    output.productIterator.mkString.split(" ").find(_.contains(".git")) match {
-      case Some(url) => url
-      case None => throw new GitMasterError("Impossible to get the remote url of " + dir.getName)
-    }
-  })
-  def clone(url: String, branch: String) = {
-    run(Process("git clone -b " + branch + " " + url))
-  }
+  def clone(url: String, branch: String):String = run(Process("git clone -b " + branch + " " + url))
 }
 
 object Gmaster {
@@ -159,18 +149,25 @@ object Gmaster {
       case _ => "well... there is something unusual".red
     }
 
-    def getRemoteUrl: Try[String] = Git.remoteUrl(dir)
+    def getRemoteUrl: Try[String] = Try(Git.remoteUrl(dir))
 
-    override def toString = (dir + "-" + branchName.blue + ": " + litteralStatus.green)
+    def toRow = Row(Col(dir), Col(branchName.blue), Col(litteralStatus.green))
   }
 
   def gitInformations(directories: List[File], conf:Option[GitMasterConf]=None): List[Info] = {
     val futures = directories map((dir) => {
         Future {
           val combinedFuture = for {
-              r1 <- Future { Git.status(dir) }
-              r2 <- Future { Git.branch(dir).trim }
-            } yield (r1, r2)
+            r1 <- Future {
+              Try(Git.fetch(dir)) match {
+                case Success(_) => Git.status(dir)
+                case Failure(_) => GitStatus.NO_REMOTE
+              }
+            }
+            r2 <- Future {
+              Git.branch(dir)
+            }
+          } yield (r1, r2)
           val (state, branch) = Await.result(combinedFuture, timeout)
           val repoConf = conf match {
             case Some(conf) => conf.repos.find(_.name == dir.getName)
@@ -209,8 +206,10 @@ object Gmaster {
     })
     notExistingRepos.foreach(repo => {
       Out < "Cloning " + repo.urlToPull
-      val (res, err) = Git.clone(repo.url, repo.branch)
-      if (!err.isEmpty) throw new GitMasterError("Impossible to clone -b " + repo.branch + " "+ repo.url )
+      Try(Git.clone(repo.url, repo.branch)) match {
+        case Success(res) => "Done"
+        case Failure(_) => throw new GitMasterError("Impossible to clone -b " + repo.branch + " "+ repo.url )
+      }
       Out << " Done".green
     })
   }
@@ -247,10 +246,12 @@ object Gmaster {
           val bw = new BufferedWriter(new FileWriter(file))
           bw.write(confText.mkString("\n"))
           bw.close()
-          println(confText)
-          println(errors)
-          //listOfRemoteForConf foreach println
-          Out < "Done".green
+          if (!errors.isEmpty) {
+            Out << "Done with errors".red
+            errors foreach println
+          } else {
+            Out < "Done".green
+          }
         }
         case "no" => Out < "aborted"
       }
@@ -278,9 +279,10 @@ object Gmaster {
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
       val infos = gitInformations(gitRepos)
       Out.stopWait
-      infos foreach((info) => {
-        Out < info.toString
-      })
+      if (infos.isEmpty)
+        println("No git repository here.")
+      else
+        println(Table(infos.map(_.toRow): _*))
     }
   }
   case object SYNC extends Action {
@@ -294,7 +296,13 @@ object Gmaster {
       val infos = gitInformations(gitRepos, Some(conf))
       Out.stopWait
       infos foreach((info) => {
-        Out < info.toString
+        Out << info.toString
+        if (info.status == GitStatus.NOT_SYNC) {
+          Out << " pulling... ".red
+          Git.pull(info.dir)
+          print("Done".green)
+        }
+        Out.ln
       })
     }
   }
@@ -310,18 +318,44 @@ object Gmaster {
       notGitRepos foreach((dir) => {
         println(dir + " is not a Git repo")
       })
-      infos foreach((info) => {
-        Out < info.toString
-        Out.ln
-      })
+      if (infos.isEmpty)
+        println("No git repository here.")
+      else
+        infos foreach println
     }
   }
+
+  case class Table(rows:Row*) {
+    val maxLength = 35
+    def truncate(str:String) = if (str.length > maxLength) str.take(maxLength - 6) + "..." else str
+    def bound(i:Int) = if (i > maxLength) maxLength else i
+    override def toString = {
+      val longestRow = rows.maxBy(_.length)
+      val columsMaxLength = longestRow.cols.zipWithIndex.map {
+        case (col, index) => {
+          rows.maxBy(_.cols(index).str.length).cols(index).str.length + 1
+        }
+      }
+      rows.map(row => {
+        row.cols.zipWithIndex.map({
+          case (col, index) => val t = col.str; t + " " * (columsMaxLength(index) - t.length)
+        }).mkString
+      }).mkString("\n")
+    }
+  }
+  case class Row(cols:Col*) {
+    def length = cols.length
+  }
+  case class Col(obj:Any) {
+    val str:String = obj.toString
+  }
+
   case object HELP extends Action {
     val name = "List of commands"
     val cmd = "help"
     override def execute = {
       List(LIST_REPOS, SHOW_STATUS, INIT, SYNC, DUMP).foreach(action => {
-        Out << action.cmd << (" " * (15 - action.cmd.length))  < action.name
+        Out << Table(Row(Col(action.cmd), Col(action.name)))
       })
     }
   }
