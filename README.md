@@ -11,6 +11,7 @@ ALPHA VERSION
 Requirement: You need java installed.
 
 Copy the gmaster file in your bin path. For example under /usr/bin/
+This command do that for you: `curl -fsSLo /usr/bin/gmaster https://github.com/francoiscabrol/gitmaster/releases/download/v0.5/gmaster`
 Then you will be able to run it direcly in your terminal.
 `gmaster help`
 
