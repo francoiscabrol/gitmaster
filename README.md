@@ -7,15 +7,18 @@ GitMaster is a small command line tool with two simple goals:
 
 ALPHA VERSION
 
-Requirement: You need scala installed.
-For macos: `brew install scala`
-For archlinux: `pacman -Ss scala`
-I have written the script with scala 2.11.8.
+# Install it
+Requirement: You need java installed.
 
-In the future, I would like to release GitMaster as a command line application packaged in a simple runnable file with sbt assembly.
-But while it is under development, it's easier to hack it as a simple scala script file.
 Copy the gmaster file in your bin path. For example under /usr/bin/
 Then you will be able to run it direcly in your terminal.
 `gmaster help`
 
-Yu can try to run `gmaster` in your Workspace to check the status of your repositories.
+You can try to run `gmaster` in your Workspace to check the status of your repositories.
+
+# Build it yourself
+
+Requirement: You need sbt (simple build tool) installed.
+
+Then run `sbt assembly` to build the gmaster executable.
+

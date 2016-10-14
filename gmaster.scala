@@ -1,7 +1,3 @@
-#!/bin/sh
-exec scala -feature -deprecation -savecompiled "$0" "$@"
-!#
-
 import java.io.File
 import java.io.FileWriter
 import java.io.BufferedWriter
@@ -97,14 +93,12 @@ object Git {
   def fetch(dir: File):String = {
     run(Process("git fetch", dir))
   }
-  def status(dir: File):GitStatus.Value = {
-    run(Process("git status", dir)) match {
-      case x if x.contains("not staged") => GitStatus.UNSTAGE_FILES
-      case x if x.contains("up-to-date") => GitStatus.UP_TO_DATE
-      case x if x.contains("git pull") => GitStatus.NOT_SYNC
-      case x if x.contains("nothing to commit") => GitStatus.NO_REMOTE
-      case _ => GitStatus.UNEXPECTED_ERROR
-    }
+  def status(dir: File):GitStatus.Value = run(Process("git status", dir)) match {
+    case x if x.contains("not staged") => GitStatus.UNSTAGE_FILES
+    case x if x.contains("up-to-date") => GitStatus.UP_TO_DATE
+    case x if x.contains("git pull") => GitStatus.NOT_SYNC
+    case x if x.contains("nothing to commit") => GitStatus.NO_REMOTE
+    case _ => GitStatus.UNEXPECTED_ERROR
   }
   def pull(dir: File):String = run(Process("git pull", dir))
   def remoteUrl(dir: File):String = run(Process("git remote show origin", dir)).split(" ").find(_.contains(".git")) match {
@@ -379,9 +373,9 @@ object Gmaster {
   }
 }
 
-try {
-  Gmaster.main(args)
-} catch {
-  case _: TimeoutException => Out.stopWait < "Timeout"
-  case err: GitMasterError => Out.stopWait < err.message
-}
+//try {
+  //Gmaster.main(args)
+//} catch {
+  //case _: TimeoutException => Out.stopWait < "Timeout"
+  //case err: GitMasterError => Out.stopWait < err.message
+//}
