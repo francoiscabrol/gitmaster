@@ -1,18 +1,23 @@
+package gitmaster
+
 import java.io.File
 import java.io.FileWriter
 import java.io.BufferedWriter
+
 import sys.process._
-import scala.io.StdIn.{readLine}
+import scala.io.StdIn.readLine
 import scala.io.Source
 import scala.concurrent.ExecutionContext.Implicits.global
 import concurrent.{Await, Future}
 import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
+
 import scala.language.implicitConversions
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import scala.collection.mutable.ListBuffer
+import scala.util
 
 case class GitMasterError(message: String) extends Exception(message)
 
@@ -49,14 +54,20 @@ class AnimatedWaitingMessage(message: String) {
 
 object Out {
   var waitingMessage:Option[AnimatedWaitingMessage] = None
+  var bufferMessage = new String();
 
   def startWait(message:String) = {
     stopWait
     waitingMessage = Some(new AnimatedWaitingMessage(message).show)
+    bufferMessage = new String
     this
   }
   def stopWait = {
     waitingMessage foreach(_.hide)
+    if (!bufferMessage.isEmpty) {
+      println(bufferMessage)
+      bufferMessage = new String
+    }
     this
   }
   def ln = {
@@ -64,11 +75,19 @@ object Out {
     this
   }
   def <(str:Any) = {
-    println(str)
+    if (waitingMessage.isDefined) {
+      bufferMessage += str + "\n"
+    } else {
+      println(str)
+    }
     this
   }
   def <<(str:Any) = {
-    print(str)
+    if (waitingMessage.isDefined) {
+      bufferMessage += str
+    } else {
+      print(str)
+    }
     this
   }
 }
@@ -77,7 +96,7 @@ object GitStatus extends Enumeration {
   val NOT_SYNC, UP_TO_DATE, UNSTAGE_FILES, UNEXPECTED_ERROR, NO_REMOTE = Value
 }
 
-object Git {
+object GitCmd {
 
   private def run(processBuilder: ProcessBuilder):String = {
     val stdout = new StringBuilder
@@ -127,7 +146,7 @@ object Gmaster {
 
   implicit def tupleToString(t: Tuple2[String, String]):String = t.productIterator.mkString
 
-  case class Info(dir: File, branchName: String, status: GitStatus.Value, conf:Option[GitRepoConf]) {
+  case class GitRepo(dir: File, branchName: String, status: GitStatus.Value, conf:Option[GitRepoConf]) {
     val name = dir.getName
 
     def isGoodBranchCheckout:Option[Boolean] = conf match {
@@ -143,23 +162,20 @@ object Gmaster {
       case _ => "well... there is something unusual".red
     }
 
-    def getRemoteUrl: Try[String] = Try(Git.remoteUrl(dir))
+    def getRemoteUrl: Try[String] = Try(GitCmd.remoteUrl(dir))
 
     def toRow = Row(Col(dir), Col(branchName.blue), Col(litteralStatus.green))
   }
 
-  def gitInformations(directories: List[File], conf:Option[GitMasterConf]=None): List[Info] = {
+  def gitInformations(directories: List[File], conf:Option[GitMasterConf]=None): List[GitRepo] = {
     val futures = directories map((dir) => {
         Future {
           val combinedFuture = for {
             r1 <- Future {
-              Try(Git.fetch(dir)) match {
-                case Success(_) => Git.status(dir)
-                case Failure(_) => GitStatus.NO_REMOTE
-              }
+              GitCmd.status(dir)
             }
             r2 <- Future {
-              Git.branch(dir)
+              GitCmd.branch(dir)
             }
           } yield (r1, r2)
           val (state, branch) = Await.result(combinedFuture, timeout)
@@ -167,7 +183,7 @@ object Gmaster {
             case Some(conf) => conf.repos.find(_.name == dir.getName)
             case None => None
           }
-          Info(dir, branch, state, repoConf)
+          GitRepo(dir, branch, state, repoConf)
         }
       })
     Await.result(Future.sequence(futures), timeout)
@@ -193,14 +209,14 @@ object Gmaster {
     }
   }
 
-  def cloneAllRepositories(conf:GitMasterConf, infos:List[Info]) {
+  def cloneAllRepositories(conf:GitMasterConf, infos:List[GitRepo]) {
     val gitReposNames = infos.map(_.dir.getName)
     val notExistingRepos = conf.repos.filter(repo => {
       !gitReposNames.contains(repo.name)
     })
     notExistingRepos.foreach(repo => {
       Out < "Cloning " + repo.urlToPull
-      Try(Git.clone(repo.url, repo.branch)) match {
+      Try(GitCmd.clone(repo.url, repo.branch)) match {
         case Success(res) => "Done"
         case Failure(_) => throw new GitMasterError("Impossible to clone -b " + repo.branch + " "+ repo.url )
       }
@@ -221,7 +237,7 @@ object Gmaster {
       confirm match {
         case "yes" => {
           Out startWait "Listing all repositories"
-          val directories = new File(".").listDirectories.filter(!_.isHidden)
+          val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
           val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
           val infos = gitInformations(gitRepos)
           Out.stopWait
@@ -236,7 +252,7 @@ object Gmaster {
             }
           })
           Out.stopWait
-          val file = new File(".gitmaster")
+          val file = new File(Dir.value + "/.gitmaster")
           val bw = new BufferedWriter(new FileWriter(file))
           bw.write(confText.mkString("\n"))
           bw.close()
@@ -264,12 +280,28 @@ object Gmaster {
       Out.stopWait < "Done".green
     }
   }
-  case object SHOW_STATUS extends Action {
+  case object FETCH extends Action {
+    val name = "git fetch each repositories"
+    val cmd = "fetch"
+    override def execute = {
+      Out startWait "Fetching the git repositories"
+      val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
+      val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
+      gitRepos.foreach(repo => {
+        Try(GitCmd.fetch(repo)) match {
+          case Success(_) => Out << "Fetched " < repo.getName
+          case Failure(_) => Out << "Impossible to fetch " < repo.getName
+        }
+      })
+      Out.stopWait < "Done".green
+    }
+  }
+  case object STATUS extends Action {
     val name = "Show status"
     val cmd = "status"
     override def execute = {
       Out startWait "Finding the git repositories"
-      val directories = new File(".").listDirectories.filter(!_.isHidden)
+      val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
       val infos = gitInformations(gitRepos)
       Out.stopWait
@@ -279,25 +311,26 @@ object Gmaster {
         println(Table(infos.map(_.toRow): _*))
     }
   }
-  case object SYNC extends Action {
-    val name = "Sync"
-    val cmd = "sync"
+  case object PULL extends Action {
+    val name = "Pull"
+    val cmd = "pull"
     override def execute = {
-      Out startWait "Finding the git repositories"
-      val directories = new File(".").listDirectories.filter(!_.isHidden)
+      Out startWait "Pulling the git repositories"
+      val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
-      val conf = GitMasterConf.load
-      val infos = gitInformations(gitRepos, Some(conf))
-      Out.stopWait
-      infos foreach((info) => {
-        Out << info.toString
+      val infos = gitInformations(gitRepos)
+      if (infos.isEmpty)
+        println("No git repository here.")
+      infos.foreach((info) => {
         if (info.status == GitStatus.NOT_SYNC) {
-          Out << " pulling... ".red
-          Git.pull(info.dir)
-          print("Done".green)
+          Out << info.name << " pulling... ".red
+          Try(GitCmd.pull(info.dir)) match {
+            case Success(_) => Out < "Done".green
+            case Failure(_) => Out < "Fail".red
+          }
         }
-        Out.ln
       })
+      Out.stopWait
     }
   }
   case object LIST_REPOS extends Action {
@@ -344,32 +377,55 @@ object Gmaster {
     val str:String = obj.toString
   }
 
+  val actionsList:List[Action] = List(LIST_REPOS, STATUS, FETCH, INIT, PULL, DUMP, HELP)
+
   case object HELP extends Action {
     val name = "List of commands"
     val cmd = "help"
     override def execute = {
-      println(Table(List(LIST_REPOS, SHOW_STATUS, INIT, SYNC, DUMP).map(action => {
+      println(Table(actionsList.map(action => {
         Row(Col(action.cmd), Col(action.name))
       }):_*))
     }
   }
 
-  def parseArgs(args: Array[String]):Action = args match {
-    case args if args.isEmpty => SHOW_STATUS
-    case args if args.length > 0 => args(0) match {
-      case HELP.cmd => HELP
-      case INIT.cmd => INIT
-      case DUMP.cmd => DUMP
-      case SYNC.cmd => SYNC
-      case SHOW_STATUS.cmd => SHOW_STATUS
-      case LIST_REPOS.cmd => LIST_REPOS
-        case _ => throw new GitMasterError(s"Command '${args(0)}' is not valid. See 'gitmaster help.'")
+  sealed trait Param {
+    val name: String
+    val cmd: String
+    var value:String
+  }
+  case object Dir extends Param {
+    val name = "Directory to parse"
+    val cmd = "--dir"
+    var value = "."
+  }
+
+  def parseArgs(args: Array[String], actions:Set[Action]=Set(), options:Set[Param]=Set()):(Set[Action], Set[Param]) = {
+    def addParam(param: Param) = {
+      param.value = args(1)
+      parseArgs(args.drop(2), actions, options + param)
+    }
+    def addAction(action: Action) = parseArgs(args.drop(1), actions + action, options)
+    args match {
+      case args if args.isEmpty => if (actions.isEmpty) (Set(STATUS), options) else (actions, options)
+      case args if args.length > 0 => args(0) match {
+        case Dir.cmd => addParam(Dir)
+        case _ => actionsList.find(_.cmd == args(0)) match {
+          case Some(action) => addAction(action)
+          case None => throw new GitMasterError(s"Action or param '${args(0)}' is not valid. See 'gitmaster help.'")
+        }
+      }
     }
   }
 
   def main(args: Array[String]) {
-    val action = parseArgs(args)
-    action.execute
+    try {
+      val (actions, params) = parseArgs(args)
+      actions.foreach(_.execute)
+    } catch {
+      case _: TimeoutException => Out.stopWait < "Timeout of " + timeout.toSeconds + " seconds is over."
+      case err: GitMasterError => Out.stopWait < err.message
+    }
   }
 }
 
