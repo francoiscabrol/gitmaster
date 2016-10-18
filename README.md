@@ -9,12 +9,14 @@ Features
 --------
 `gmaster help` list the commands:
 
+```
 status  | Show the status of each repositories
 fetch   | git fetch each repositories
 init    | Clone all repositories defined in the .gitmaster file
 pull    | git pull each repositories
 dump    | Dump the list of repositories in the .gitmaster file
 help    | Show this help
+```
 
 Several commands can be executed in the same run. 
 For example, `gitmaster fetch status` is going to first fetch the last remote version and then display the status of each repository.
