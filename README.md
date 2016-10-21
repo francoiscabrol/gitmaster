@@ -19,15 +19,19 @@ help    | Show this help
 ```
 
 Several commands can be executed in the same run. 
-For example, `gitmaster fetch status` is going to first fetch the last remote version and then display the status of each repository.
+For example, `gitmaster fetch status` is going to first fetch the last remote versions and then display the status of each repository.
 
 Install it
 ----------
-Requirement: You need java installed.
+Requirement: You need java installed. And git of course.
+I tried it under MacOS, Linux Ubuntu and Arch Linux. It should works under window also but I don't know how to install it.
 
-Copy the gmaster file in your bin path. For example under /usr/bin/.
-This command do that for you: `sudo curl -Lo /usr/bin/gmaster https://github.com/francoiscabrol/gitmaster/releases/download/0.7/gmaster`.
-You will need to change the permissions with `sudo chmod -x /usr/bin/gmaster`.
+Under Linux/Macos, you have just to copy the "gmaster" file in your bin path. For example under /usr/bin/.
+
+This command is going to install the last release for you. You can replace the GITMASTER_PATH to install it in an other folder.
+
+`export GITMASTER_PATH=/usr/bin/gmaster && curl https://raw.githubusercontent.com/francoiscabrol/gitmaster/master/install.sh | bash -x`
+
 Then you will be able to run it direcly in your terminal.
 `gmaster help`
 
