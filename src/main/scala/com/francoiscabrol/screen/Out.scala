@@ -12,6 +12,7 @@ object Out {
   }
   def stopWait = {
     waitingMessage foreach(_.hide)
+    waitingMessage = None
     if (!bufferMessage.isEmpty) {
       println(bufferMessage)
       bufferMessage = new String

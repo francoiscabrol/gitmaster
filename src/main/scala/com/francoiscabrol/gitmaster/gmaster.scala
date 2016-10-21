@@ -1,75 +1,32 @@
 package com.francoiscabrol.gitmaster
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.File
 import java.util.concurrent.TimeoutException
 
 import com.francoiscabrol.ArgsParser._
 import com.francoiscabrol.gitmaster.git.{GitCmd, GitCmdError, GitStatus}
-import com.francoiscabrol.gitmaster.screen.TablePrinter._
+import com.francoiscabrol.screen.TablePrinter._
 import com.francoiscabrol.screen.Colored._
 import com.francoiscabrol.screen.Out
 import com.francoiscabrol.gitmaster.Config._
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.io.StdIn.readLine
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 object Gmaster {
 
-  val timeout = 60.seconds
+  val TIMEOUT = 60.seconds
 
   implicit class FileDecored(file: File) {
     def listDirectories: List[File] = file.listFiles.filter(_.isDirectory).toList
     def isGitRepo: Boolean = file.listFiles.exists(f => f.getName == ".git")
   }
-
-  case class Repository(dir: File, conf:Option[RepositoryConfig]) {
-    val name = dir.getName
-
-    def status = GitCmd.status(dir)
-
-    def branch = GitCmd.branch(dir)
-
-    def isGoodBranchCheckout:Option[Boolean] = conf match {
-      case Some(conf) => Some(branch == conf.branch)
-      case None => None
-    }
-
-    def litteralStatus: String = status match {
-      case GitStatus.UNSTAGE_FILES => "Need to stage files".red
-      case GitStatus.UP_TO_DATE => "Up to date"
-      case GitStatus.NOT_SYNC => "Need to pull".blue
-      case GitStatus.NO_REMOTE => "Not synchonized with a remote"
-      case _ => "well... there is something unusual".red
-    }
-
-    def getRemoteUrl: Try[String] = Try(GitCmd.remoteUrl(dir))
-
-    def toRow = Row(Col(dir), Col(branch.blue), Col(litteralStatus.green))
-  }
-  object Repository {
-    def create(dir: File, config:Option[ConfigFile]=None): Repository = {
-      val repositoryConfig = config match {
-        case Some(config) => config.repositories.find(_.name == dir.getName)
-        case None => None
-      }
-      Repository(dir, repositoryConfig)
-    }
-  }
-
-  object RepositoriesFactory {
-    def createRepositories(directories: List[File], conf:Option[ConfigFile]=None): List[Repository] = {
-      directories map((dir) => {
-          Repository.create(dir, conf)
-      })
-    }
-  }
-
 
   /*
   * ACTIONS
@@ -77,11 +34,9 @@ object Gmaster {
   case object Dir extends Param {
     val name = "Directory to parse"
     val cmd = "--dir"
-    var value = "."
+    val defaultValue = "."
   }
-
-  paramsList += Dir
-
+  register(Dir)
 
   /*
   * ACTIONS
@@ -97,7 +52,9 @@ object Gmaster {
           Out startWait "Dump the repository list"
           val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
           val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
-          val infos = RepositoriesFactory.createRepositories(gitRepos)
+          val infos = gitRepos map((dir) => {
+            Repository.create(dir)
+          })
           val repositoryConfigs = ListBuffer[RepositoryConfig]()
           infos.map(info => {
             info.getRemoteUrl match {
@@ -113,6 +70,8 @@ object Gmaster {
       }
     }
   }
+  register(DUMP)
+
   case object INIT extends Action {
     val name = "Clone all repositories defined in the .gitmaster file"
     val cmd = "init"
@@ -121,7 +80,9 @@ object Gmaster {
       val directories = new File(".").listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
       val conf = ConfigFile.load(new File(Dir.value + "/.gitmaster"))
-      val infos = RepositoriesFactory.createRepositories(gitRepos)
+      val infos = gitRepos map((dir) => {
+        Repository.create(dir)
+      })
       val gitReposNames = infos.map(_.dir.getName)
       val notExistingRepos = conf.repositories.filter(repo => {
         !gitReposNames.contains(repo.name)
@@ -133,9 +94,11 @@ object Gmaster {
           case Failure(_) => Out < " Impossible to clone -b " + repo.branch + " "+ repo.url
         }
       })
-      Out.stopWait < "Done".green
+      Out.stopWait
     }
   }
+  register(INIT)
+
   case object FETCH extends Action {
     val name = "git fetch each repositories"
     val cmd = "fetch"
@@ -143,15 +106,19 @@ object Gmaster {
       Out startWait "Fetching the git repositories"
       val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
-      gitRepos.foreach(repo => {
-        Try(GitCmd.fetch(repo)) match {
-          case Success(_) => Out << "Fetched " < repo.getName
-          case Failure(_) => Out << "Impossible to fetch " < repo.getName
-        }
+      val futures:Future[List[String]] = Future.sequence({
+        gitRepos.map(repo => {
+          Future {
+            GitCmd.fetch(repo)
+          }
+        })
       })
-      Out.stopWait < "Done".green
+      Await.ready(futures, TIMEOUT)
+      Out.stopWait < "All repositories fetched."
     }
   }
+  register(FETCH)
+
   case object STATUS extends Action {
     val name = "Show the status of each repositories"
     val cmd = "status"
@@ -162,14 +129,18 @@ object Gmaster {
       //notGitRepos foreach((dir) => {
         //Out < s"$dir is not a Git repo"
       //})
-      val infos = RepositoriesFactory.createRepositories(gitRepos)
-      Out.stopWait
+      val infos = gitRepos map((dir) => {
+        Repository.create(dir)
+      })
       if (infos.isEmpty)
-        println("No git repository here.")
+        Out.<("No git repository here.")
       else
-        println(Table(infos.map(_.toRow): _*))
+        Out.<(Table(infos.map(_.toRow): _*))
+      Out.stopWait
     }
   }
+  register(STATUS)
+
   case object PULL extends Action {
     val name = "git pull each repositories"
     val cmd = "pull"
@@ -177,7 +148,9 @@ object Gmaster {
       Out startWait "Pulling each repositories"
       val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
-      val infos = RepositoriesFactory.createRepositories(gitRepos)
+      val infos = gitRepos map((dir) => {
+        Repository.create(dir)
+      })
       if (infos.isEmpty)
         println("No git repository here.")
       infos.foreach((info) => {
@@ -192,24 +165,25 @@ object Gmaster {
       Out.stopWait
     }
   }
+  register(PULL)
+
   case object HELP extends Action {
     val name = "Show this help"
     val cmd = "help"
     override def execute = {
-      println(Table(actionsList.map(action => {
+      println(Table(actions.map(action => {
         Row(Col(action.cmd), Col(action.name))
       }):_*))
     }
   }
-
-  actionsList ++= List(STATUS, FETCH, INIT, PULL, DUMP, HELP)
+  register(HELP)
 
   def main(args: Array[String]) {
     try {
       val (actions, _) = parseArgs(args, STATUS)
       actions.foreach(_.execute)
     } catch {
-      case _: TimeoutException => Out.fatal("Timeout of " + timeout.toSeconds + " seconds is over.")
+      case _: TimeoutException => Out.fatal("Timeout of " + TIMEOUT.toSeconds + " seconds is over.")
       case err: GitMasterError  => Out.error(err.message)
       case err: GitCmdError  => Out.fatal(err.message)
     }

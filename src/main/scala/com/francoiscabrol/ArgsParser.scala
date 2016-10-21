@@ -4,21 +4,33 @@ import scala.collection.mutable.ListBuffer
 
 package object ArgsParser {
 
+  private val actionsList = ListBuffer[Action]()
+  private val paramsList = ListBuffer[Param]()
+
+  def actions = actionsList
+  def register(obj: Action): Unit = actionsList += obj
+  def register(obj: Param): Unit = paramsList += obj
+
   trait Param {
+
+    private var _value: Option[String] = None
+
     val name: String
     val cmd: String
-    var value: String
+    val defaultValue: String
+
+    def value = _value.getOrElse(defaultValue)
+    def value_=(str:String): Unit = _value = Some(str)
   }
 
   trait Action {
+
     val name: String
     val cmd: String
 
     def execute = {}
   }
 
-  val actionsList = ListBuffer[Action]()
-  val paramsList = ListBuffer[Param]()
 
   def parseArgs(args: Array[String], defaultAction: Action, actions: Set[Action] = Set(), options: Set[Param] = Set()): (Set[Action], Set[Param]) = {
     def addParam(param: Param) = {

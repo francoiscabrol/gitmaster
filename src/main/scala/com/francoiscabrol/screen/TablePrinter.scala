@@ -1,4 +1,4 @@
-package com.francoiscabrol.gitmaster.screen
+package com.francoiscabrol.screen
 
 /**
   * Created by francois on 16-10-16.
