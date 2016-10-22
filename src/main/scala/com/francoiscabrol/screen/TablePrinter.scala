@@ -18,7 +18,7 @@ package object TablePrinter {
       }
       rows.map(row => {
         row.cols.zipWithIndex.map({
-          case (col, index) => val t = col.str; t + " " * (columsMaxLength(index) - t.length) + " | "
+          case (col, index) => val t = col.str; " | " + t + " " * (columsMaxLength(index) - t.length)
         }).mkString
       }).mkString("\n")
     }

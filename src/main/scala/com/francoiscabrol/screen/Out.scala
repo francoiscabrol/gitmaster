@@ -20,22 +20,22 @@ object Out {
     this
   }
   def ln = {
-    println
+    Console.println
     this
   }
-  def <(str:Any) = {
+  def println(str:Any) = {
     if (waitingMessage.isDefined) {
       bufferMessage += str + "\n"
     } else {
-      println(str)
+      Console.println(str)
     }
     this
   }
-  def <<(str:Any) = {
+  def print(str:Any) = {
     if (waitingMessage.isDefined) {
       bufferMessage += str
     } else {
-      print(str)
+      Console.print(str)
     }
     this
   }

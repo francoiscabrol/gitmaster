@@ -7,7 +7,8 @@ package object ArgsParser {
   private val actionsList = ListBuffer[Action]()
   private val paramsList = ListBuffer[Param]()
 
-  def actions = actionsList
+  def actions = actionsList.toList
+  def params = paramsList.toList
   def register(obj: Action): Unit = actionsList += obj
   def register(obj: Param): Unit = paramsList += obj
 

@@ -32,7 +32,7 @@ object Gmaster {
   * ACTIONS
   */
   case object Dir extends Param {
-    val name = "Directory to parse"
+    val name = "Directory where to execute the actions"
     val cmd = "--dir"
     val defaultValue = "."
   }
@@ -59,14 +59,14 @@ object Gmaster {
           infos.map(info => {
             info.getRemoteUrl match {
               case Success(url) => repositoryConfigs += RepositoryConfig(url, info.branch)
-              case Failure(e:GitMasterError) => Out < "[WARNING] " + info.name + ": " + e.message
-              case Failure(e) => Out < "[ERROR] " +  info.name + ": " + e.toString
+              case Failure(e:GitMasterError) => Out println "[WARNING] " + info.name + ": " + e.message
+              case Failure(e) => Out println "[ERROR] " +  info.name + ": " + e.toString
             }
           })
           ConfigFile(repositoryConfigs.toList, configFile).write
           Out.stopWait
         }
-        case _ => Out < "Dump aborted."
+        case _ => Out println "Dump aborted."
       }
     }
   }
@@ -88,10 +88,10 @@ object Gmaster {
         !gitReposNames.contains(repo.name)
       })
       notExistingRepos.foreach(repo => {
-        Out << "Cloning " + repo.url + " " + repo.branch
+        Out print "Cloning " + repo.url + " " + repo.branch
         Try(GitCmd.clone(repo.url, repo.branch)) match {
-          case Success(res) => Out < " Done".green
-          case Failure(_) => Out < " Impossible to clone -b " + repo.branch + " "+ repo.url
+          case Success(res) => Out println " Done".green
+          case Failure(_) => Out println " Impossible to clone -b " + repo.branch + " "+ repo.url
         }
       })
       Out.stopWait
@@ -114,7 +114,7 @@ object Gmaster {
         })
       })
       Await.ready(futures, TIMEOUT)
-      Out.stopWait < "All repositories fetched."
+      Out.stopWait println "All repositories fetched."
     }
   }
   register(FETCH)
@@ -133,9 +133,9 @@ object Gmaster {
         Repository.create(dir)
       })
       if (infos.isEmpty)
-        Out.<("No git repository here.")
+        Out.println("No git repository here.")
       else
-        Out.<(Table(infos.map(_.toRow): _*))
+        Out.println(Table(infos.map(_.toRow): _*))
       Out.stopWait
     }
   }
@@ -155,10 +155,10 @@ object Gmaster {
         println("No git repository here.")
       infos.foreach((info) => {
         if (info.status == GitStatus.NOT_SYNC) {
-          Out << info.name << " pulling... ".red
+          Out print info.name print " pulling... ".red
           Try(GitCmd.pull(info.dir)) match {
-            case Success(_) => Out < "Done".green
-            case Failure(_) => Out < "Fail".red
+            case Success(_) => Out println "Done".green
+            case Failure(_) => Out println "Fail".red
           }
         }
       })
@@ -171,9 +171,14 @@ object Gmaster {
     val name = "Show this help"
     val cmd = "help"
     override def execute = {
-      println(Table(actions.map(action => {
+      Out println "Actions".blue
+      Out println Table(actions.map(action => {
         Row(Col(action.cmd), Col(action.name))
-      }):_*))
+      }):_*)
+      Out println "Params".blue
+      Out println Table(params.map(param => {
+        Row(Col(param.cmd), Col(param.name))
+      }):_*)
     }
   }
   register(HELP)
