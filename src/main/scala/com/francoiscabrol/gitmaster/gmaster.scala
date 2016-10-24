@@ -31,12 +31,26 @@ object Gmaster {
   /*
   * PARAMS
   */
-  case object Dir extends Param {
-    val name = "Directory where to execute the actions"
+  case object Dir extends StringParam {
+    val name = "Directory where to execute the actions. Ex: gmaster --dir ~/Workpace. By default, it is the current directory."
     val cmd = "--dir"
     val defaultValue = "."
   }
   register(Dir)
+
+  case object InlineStatus extends BooleanParam {
+    val name = "If defined, show the repositories grouped by status. Ex: gmaster status --group. By default, it is inline."
+    val cmd = "--group"
+    val defaultValue = true
+  }
+  register(InlineStatus)
+
+  case object ShowBranch extends BooleanParam {
+    val name = "If defined, show the branch names. Ex: gmaster status --branch"
+    val cmd = "--branch"
+    val defaultValue = false
+  }
+  register(ShowBranch)
 
   /*
   * ACTIONS
@@ -126,16 +140,34 @@ object Gmaster {
       Out startWait "Get the git repositories\' status"
       val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
-      //notGitRepos foreach((dir) => {
-        //Out < s"$dir is not a Git repo"
-      //})
       val infos = gitRepos map((dir) => {
         Repository.create(dir)
       })
       if (infos.isEmpty)
         Out.println("No git repository here.")
-      else
-        Out.println(Table(infos.map(_.toRow): _*))
+      else {
+        if (InlineStatus.value) {
+          val rows = infos.map(repository => {
+            if (ShowBranch.value)
+              Row(Col(repository.name), Col(repository.branch), Col(GitStatus.litteralStatus(repository.status)))
+            else
+              Row(Col(repository.name), Col(GitStatus.litteralStatus(repository.status)))
+          })
+          Out.println(Table(rows: _*)).ln
+        } else {
+          val repositoriesByStatus = infos.groupBy(_.status)
+          for ((status, repositories) <- repositoriesByStatus) {
+            Out.println(GitStatus.litteralStatus(status))
+            val rows = repositories.map(repository => {
+              if (ShowBranch.value)
+                Row(Col(repository.name),Col(repository.branch))
+              else
+                Row(Col(repository.name))
+            })
+            Out.println(Table(rows: _*)).ln
+          }
+        }
+      }
       Out.stopWait
     }
   }
@@ -190,6 +222,7 @@ object Gmaster {
     } catch {
       case _: TimeoutException => Out.fatal("Timeout of " + TIMEOUT.toSeconds + " seconds is over.")
       case err: GitMasterError  => Out.error(err.message)
+      case err: IllegalArgumentException => Out.error(err.getMessage)
       case err: GitCmdError  => Out.fatal(err.message)
     }
   }

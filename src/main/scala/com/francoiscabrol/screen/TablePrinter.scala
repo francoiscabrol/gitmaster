@@ -6,9 +6,8 @@ package com.francoiscabrol.screen
 package object TablePrinter {
 
   case class Table(rows:Row*) {
-    val maxLength = 35
-    def truncate(str:String) = if (str.length > maxLength) str.take(maxLength - 6) + "..." else str
-    def bound(i:Int) = if (i > maxLength) maxLength else i
+    def rtrim(s: String) = s.replaceAll("\\s+$", "")
+
     override def toString = {
       val longestRow = rows.maxBy(_.length)
       val columsMaxLength = longestRow.cols.zipWithIndex.map {
@@ -18,13 +17,26 @@ package object TablePrinter {
       }
       rows.map(row => {
         row.cols.zipWithIndex.map({
-          case (col, index) => val t = col.str; " | " + t + " " * (columsMaxLength(index) - t.length)
-        }).mkString.trim
-      }).mkString("\n")
+          case (col, index) => {
+            val t = col.str
+            if (index == 0)
+              " | " + t + " " * (columsMaxLength(index) - t.length)
+            else
+              t + " " * (columsMaxLength(index) - t.length)
+          }
+        }).mkString
+      }).map(rtrim(_)).mkString("\n")
     }
   }
-  case class Row(cols:Col*) {
+  case class Row(cols:List[Col]) {
+    def add(col:Col) = Row(col :: cols)
     def length = cols.length
+  }
+  object Row {
+    def apply(cols:Col*):Row = {
+      Row(cols.toList)
+    }
+
   }
   case class Col(obj:Any) {
     val str:String = obj.toString

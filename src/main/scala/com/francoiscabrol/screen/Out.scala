@@ -20,7 +20,11 @@ object Out {
     this
   }
   def ln = {
-    Console.println
+    if (waitingMessage.isDefined) {
+      bufferMessage += "\n"
+    } else {
+      Console.println
+    }
     this
   }
   def println(str:Any) = {
