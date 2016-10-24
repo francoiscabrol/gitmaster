@@ -29,7 +29,7 @@ object Gmaster {
   }
 
   /*
-  * ACTIONS
+  * PARAMS
   */
   case object Dir extends Param {
     val name = "Directory where to execute the actions"

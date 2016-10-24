@@ -21,6 +21,7 @@ object GitCmd {
     run(Process("git fetch", dir))
   }
   def status(dir: File):GitStatus.Value = run(Process("git status", dir)) match {
+    case x if x.contains("to be committed") => GitStatus.CHANGES_TO_COMMIT
     case x if x.contains("not staged") => GitStatus.UNSTAGE_FILES
     case x if x.contains("up-to-date") => GitStatus.UP_TO_DATE
     case x if x.contains("git pull") => GitStatus.NOT_SYNC

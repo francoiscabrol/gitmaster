@@ -22,16 +22,17 @@ case class Repository(dir: File, conf:Option[RepositoryConfig]) {
   }
 
   def litteralStatus: String = status match {
-    case GitStatus.UNSTAGE_FILES => "Need to stage files".red
+    case GitStatus.CHANGES_TO_COMMIT => "Need to commit"
+    case GitStatus.UNSTAGE_FILES => "Unstaged files"
     case GitStatus.UP_TO_DATE => "Up to date"
-    case GitStatus.NOT_SYNC => "Need to pull".blue
+    case GitStatus.NOT_SYNC => "Need to pull"
     case GitStatus.NO_REMOTE => "No remote"
-    case _ => "there is something unusual".red
+    case _ => "there is something unusual"
   }
 
   def getRemoteUrl: Try[String] = Try(GitCmd.remoteUrl(dir))
 
-  def toRow = Row(Col(dir), Col(branch.blue), Col(litteralStatus.green))
+  def toRow = Row(Col(litteralStatus), Col(dir), Col(branch))
 }
 object Repository {
   def create(dir: File, config:Option[ConfigFile]=None): Repository = {
