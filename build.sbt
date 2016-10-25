@@ -2,7 +2,7 @@ import sbtassembly.AssemblyPlugin.defaultShellScript
 
 name := "gitmaster"
 
-version := "0.5"
+version := "0.9"
 
 scalaVersion := "2.11.8"
 
