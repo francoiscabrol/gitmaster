@@ -114,7 +114,7 @@ object Gmaster {
   register(INIT)
 
   case object FETCH extends Action {
-    val name = "git fetch each repositories"
+    val name = "Fetch each repositories"
     val cmd = "fetch"
     override def execute = {
       Out startWait "Fetching the git repositories"
@@ -174,7 +174,7 @@ object Gmaster {
   register(STATUS)
 
   case object PULL extends Action {
-    val name = "git pull each repositories"
+    val name = "Pull each repositories"
     val cmd = "pull"
     override def execute = {
       Out startWait "Pulling each repositories"
