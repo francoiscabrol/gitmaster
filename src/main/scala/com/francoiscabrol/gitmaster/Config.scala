@@ -10,7 +10,7 @@ package object Config {
   case class RepositoryConfig(url:String, branch:String) {
     val name = url.split("/").last.replace(".git", "")
   }
-  case class ConfigFile(repositories:List[RepositoryConfig], file: File) {
+  case class ConfigFile(var repositories: List[RepositoryConfig] = List(), file: File) {
     def write: Unit = {
       if (repositories.isEmpty)
         throw new GitMasterError("No repository found. Impossible to write the config file " + file.getPath)

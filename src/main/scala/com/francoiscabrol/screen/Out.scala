@@ -1,8 +1,8 @@
 package com.francoiscabrol.screen
 
 object Out {
-  var waitingMessage:Option[AnimatedWaitingMessage] = None
-  var bufferMessage = new String();
+  private var waitingMessage:Option[AnimatedWaitingMessage] = None
+  private var bufferMessage = new String();
 
   def startWait(message:String) = {
     stopWait
