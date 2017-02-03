@@ -32,10 +32,16 @@ package object ArgsParser {
 
     val name: String
     val cmd: String
+    val nargs: Int = 0
+    var args = Array[String]()
 
-    def execute = {}
+    def contract: Unit = {
+      require(args.size == nargs, s"The action $cmd require $nargs arguments. See help.")
+    }
+
+    def execute: Unit
+
   }
-
 
   def parseArgs(args: Array[String], defaultAction: Action, actions: Set[Action] = Set(), options: Set[Param[_]] = Set()): (Set[Action], Set[Param[_]]) = {
     def addParam(param: Param[_]) = {
@@ -50,7 +56,12 @@ package object ArgsParser {
         }
       }
     }
-    def addAction(action: Action) = parseArgs(args.drop(1), defaultAction, actions + action, options)
+    def addAction(action: Action) = {
+      val actionArguments = args.take(action.nargs + 1).drop(1)
+      action.args = actionArguments
+      action.contract
+      parseArgs(args.drop(1 + action.nargs), defaultAction, actions + action, options)
+    }
 
     args match {
       case args if args.isEmpty => actions match {

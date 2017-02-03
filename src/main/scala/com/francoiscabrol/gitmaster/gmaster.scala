@@ -91,7 +91,7 @@ object Gmaster {
     val cmd = "init"
     override def execute = {
       Out startWait "Initialiazing"
-      val directories = new File(".").listDirectories.filter(!_.isHidden)
+      val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
       val conf = ConfigFile.load(new File(Dir.value + "/.gitmaster"))
       val infos = gitRepos map((dir) => {
@@ -198,6 +198,43 @@ object Gmaster {
     }
   }
   register(PULL)
+
+  case object CLONE extends Action {
+    val name = "Clone the repository"
+    val cmd = "clone"
+    override val nargs = 1
+
+    override def execute = {
+      val repo = args(0)
+      Out startWait "Cloning " + repo
+      val foldersBefore = new File(Dir.value).listDirectories
+      Try(GitCmd.clone(repo)) match {
+        case Success(res) => {
+          Out stopWait
+          val configFile = new File(Dir.value + "/.gitmaster")
+          val config = if (configFile.exists) ConfigFile.load(configFile) else ConfigFile(file = configFile)
+          val foldersAfter = new File(Dir.value).listDirectories
+          val newFolders = foldersAfter.diff(foldersBefore)
+          assume(newFolders.size == 1)
+          val repoDir = newFolders.head
+          println(repoDir)
+          val repoInfo = Repository.create(repoDir)
+          repoInfo.getRemoteUrl match {
+            case Success(url) => {
+              config.repositories = config.repositories ::: List(RepositoryConfig(url, repoInfo.branch))
+              config.write
+              Out println "Done".green
+            }
+            case Failure(e:GitMasterError) => Out println "[WARNING] " + repoInfo.name + ": " + e.message
+            case Failure(e) => Out println "[ERROR] " +  repoInfo.name + ": " + e.toString
+          }
+        }
+        case Failure(_) => Out stopWait; Out println "Impossible to clone " + repo
+      }
+      Out stopWait
+    }
+  }
+  register(CLONE)
 
   case object HELP extends Action {
     val name = "Show this help"
