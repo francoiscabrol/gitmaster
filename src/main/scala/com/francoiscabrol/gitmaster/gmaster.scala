@@ -3,6 +3,7 @@ package com.francoiscabrol.gitmaster
 import java.io.File
 import java.util.concurrent.TimeoutException
 
+import com.francoiscabrol.ArgsParser
 import com.francoiscabrol.ArgsParser._
 import com.francoiscabrol.gitmaster.git.{GitCmd, GitCmdError, GitStatus}
 import com.francoiscabrol.screen.TablePrinter._
@@ -31,34 +32,31 @@ object Gmaster {
   /*
   * PARAMS
   */
-  case object Dir extends StringParam {
-    val name = "Directory where to execute the actions. Ex: gmaster --dir ~/Workpace. By default, it is the current directory."
-    val cmd = "--dir"
-    val defaultValue = "."
-  }
-  register(Dir)
+  val Dir = ArgsParser register new Param[String](
+    description = "Directory where to execute the actions. Ex: gmaster --dir ~/Workpace. By default, it is the current directory.",
+    cmd = "--dir",
+    defaultValue = "."
+  )
 
-  case object InlineStatus extends BooleanParam {
-    val name = "If defined, show the repositories grouped by status. Ex: gmaster status --group. By default, it is inline."
-    val cmd = "--group"
-    val defaultValue = true
-  }
-  register(InlineStatus)
+  val InlineStatus = ArgsParser register new Param[Boolean](
+    description = "If defined, show the repositories grouped by status. Ex: gmaster status --group. By default, it is inline.",
+    cmd = "--group",
+    defaultValue = true
+  )
 
-  case object ShowBranch extends BooleanParam {
-    val name = "If defined, show the branch names. Ex: gmaster status --branch"
-    val cmd = "--branch"
-    val defaultValue = false
-  }
-  register(ShowBranch)
+  val ShowBranch = ArgsParser register new Param[Boolean](
+    description = "If defined, show the branch names. Ex: gmaster status --branch",
+    cmd = "--branch",
+    defaultValue = false
+  )
 
   /*
   * ACTIONS
   */
-  case object DUMP extends Action {
-    val name = "Dump the list of repositories in the .gitmaster file"
-    val cmd = "dump"
-    override def execute = {
+  ArgsParser register new Action (
+    description = "Dump the list of repositories in the .gitmaster file",
+    cmd = "dump",
+    task = (args: Array[String]) => {
       val configFile = new File(Dir.value + "/.gitmaster")
       val confirm = if (configFile.exists) readLine("Are you sure that you want to override the file .gitmaster? (yes or no) ") else "yes"
       confirm match {
@@ -83,13 +81,12 @@ object Gmaster {
         case _ => Out println "Dump aborted."
       }
     }
-  }
-  register(DUMP)
+  )
 
-  case object INIT extends Action {
-    val name = "Clone all repositories defined in the .gitmaster file"
-    val cmd = "init"
-    override def execute = {
+  ArgsParser register new Action (
+    description = "Clone all repositories defined in the .gitmaster file",
+    cmd = "init",
+    task = (args: Array[String]) => {
       Out startWait "Initialiazing"
       val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
@@ -110,13 +107,12 @@ object Gmaster {
       })
       Out.stopWait
     }
-  }
-  register(INIT)
+  )
 
-  case object FETCH extends Action {
-    val name = "Fetch each repositories"
-    val cmd = "fetch"
-    override def execute = {
+  ArgsParser register new Action (
+    description = "Fetch each repositories",
+    cmd = "fetch",
+    task = (args: Array[String]) => {
       Out startWait "Fetching the git repositories"
       val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
@@ -130,13 +126,12 @@ object Gmaster {
       Await.ready(futures, TIMEOUT)
       Out.stopWait println "All repositories fetched."
     }
-  }
-  register(FETCH)
+  )
 
-  case object STATUS extends Action {
-    val name = "Show the status of each repositories"
-    val cmd = "status"
-    override def execute = {
+  val STATUS = ArgsParser register new Action (
+    description = "Show the status of each repositories",
+    cmd = "status",
+    task = (args: Array[String]) => {
       Out startWait "Get the git repositories\' status"
       val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
@@ -169,14 +164,12 @@ object Gmaster {
         }
       }
       Out.stopWait
-    }
-  }
-  register(STATUS)
+    })
 
-  case object PULL extends Action {
-    val name = "Pull each repositories"
-    val cmd = "pull"
-    override def execute = {
+  ArgsParser register new Action (
+    description = "Pull each repositories",
+    cmd = "pull",
+    task = (args: Array[String]) => {
       Out startWait "Pulling each repositories"
       val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
       val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
@@ -196,15 +189,13 @@ object Gmaster {
       })
       Out.stopWait
     }
-  }
-  register(PULL)
+  )
 
-  case object CLONE extends Action {
-    val name = "Clone the repository"
-    val cmd = "clone"
-    override val nargs = 1
-
-    override def execute = {
+  ArgsParser register new Action (
+    description = "Clone the repository",
+    cmd = "clone",
+    nargs = 1,
+    task = (args: Array[String]) => {
       val repo = args(0)
       Out startWait "Cloning " + repo
       val foldersBefore = new File(Dir.value).listDirectories
@@ -233,28 +224,27 @@ object Gmaster {
       }
       Out stopWait
     }
-  }
-  register(CLONE)
+  )
 
-  case object HELP extends Action {
-    val name = "Show this help"
-    val cmd = "help"
-    override def execute = {
+
+  ArgsParser register new Action(
+    description = "Show this help",
+    cmd = "help",
+    task = (args: Array[String]) => {
       Out println "Actions".blue
       Out println Table(actions.map(action => {
-        Row(Col(action.cmd), Col(action.name))
-      }):_*)
+        Row(Col(action.cmd), Col(action.description))
+      }): _*)
       Out println "Params".blue
       Out println Table(params.map(param => {
-        Row(Col(param.cmd), Col(param.name))
-      }):_*)
+        Row(Col(param.cmd), Col(param.description))
+      }): _*)
     }
-  }
-  register(HELP)
+  )
 
   def main(args: Array[String]) {
     try {
-      val (actions, _) = parseArgs(args, STATUS)
+      val (actions, _) = ArgsParser.parseArgs(args, STATUS)
       actions.foreach(_.execute)
     } catch {
       case _: TimeoutException => Out.fatal("Timeout of " + TIMEOUT.toSeconds + " seconds is over.")

@@ -9,50 +9,45 @@ package object ArgsParser {
 
   def actions = actionsList.toList
   def params = paramsList.toList
-  def register(obj: Action): Unit = actionsList += obj
-  def register(obj: Param[_]): Unit = paramsList += obj
+  def register(obj: Action): Action = {
+    actionsList += obj
+    obj
+  }
+  def register[T](obj: Param[T]): Param[T] = {
+    paramsList += obj
+    obj
+  }
 
-  abstract trait Param[T] {
+  case class Param[T](description: String, cmd: String, defaultValue: T) {
 
     private var _value: Option[T] = None
 
-    val name: String
-    val cmd: String
-    val defaultValue: T
-
-    def value = _value.getOrElse(defaultValue)
+    def value: T = _value.getOrElse(defaultValue)
     def value_=(nval:T): Unit = _value = Some(nval)
   }
 
-  trait StringParam extends Param[String]
-
-  trait BooleanParam extends Param[Boolean]
-
-  trait Action {
-
-    val name: String
-    val cmd: String
-    val nargs: Int = 0
-    var args = Array[String]()
+  case class Action(description: String, cmd: String, nargs: Int = 0, var args:Array[String] = Array(), task: (Array[String]) => Unit) {
 
     def contract: Unit = {
       require(args.size == nargs, s"The action $cmd require $nargs arguments. See help.")
     }
 
-    def execute: Unit
+    def execute: Unit = task(args)
 
   }
 
   def parseArgs(args: Array[String], defaultAction: Action, actions: Set[Action] = Set(), options: Set[Param[_]] = Set()): (Set[Action], Set[Param[_]]) = {
-    def addParam(param: Param[_]) = {
+    def addParam[T](param: Param[T]) = {
       param match {
-        case p:StringParam => {
-          p.value = args(1)
-          parseArgs(args.drop(2), defaultAction, actions, options + p)
+        case p: Param[T] if p.defaultValue.isInstanceOf[String] => {
+          val param = p.asInstanceOf[Param[String]]
+          param.value = args(1)
+          parseArgs(args.drop(2), defaultAction, actions, options + param)
         }
-        case p:BooleanParam => {
-          p.value = !p.defaultValue
-          parseArgs(args.drop(1), defaultAction, actions, options + p)
+        case p:Param[T] if p.defaultValue.isInstanceOf[Boolean] => {
+          val param = p.asInstanceOf[Param[Boolean]]
+          param.value = !param.defaultValue
+          parseArgs(args.drop(1), defaultAction, actions, options + param)
         }
       }
     }
