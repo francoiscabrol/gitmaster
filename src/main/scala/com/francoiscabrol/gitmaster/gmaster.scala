@@ -3,8 +3,7 @@ package com.francoiscabrol.gitmaster
 import java.io.File
 import java.util.concurrent.TimeoutException
 
-import com.francoiscabrol.ArgsParser
-import com.francoiscabrol.ArgsParser._
+import argsparser._
 import com.francoiscabrol.gitmaster.git.{GitCmd, GitCmdError, GitStatus}
 import com.francoiscabrol.screen.TablePrinter._
 import com.francoiscabrol.screen.Colored._
@@ -29,22 +28,24 @@ object Gmaster {
     def isGitRepo: Boolean = file.listFiles.exists(f => f.getName == ".git")
   }
 
+  val parser = new Parser(true)
+
   /*
   * PARAMS
   */
-  val Dir = ArgsParser register new Param[String](
+  val Dir = parser register new Param[String](
     description = "Directory where to execute the actions. Ex: gmaster --dir ~/Workpace. By default, it is the current directory.",
     cmd = "--dir",
     defaultValue = "."
   )
 
-  val InlineStatus = ArgsParser register new Param[Boolean](
+  val InlineStatus = parser register new Param[Boolean](
     description = "If defined, show the repositories grouped by status. Ex: gmaster status --group. By default, it is inline.",
     cmd = "--group",
     defaultValue = true
   )
 
-  val ShowBranch = ArgsParser register new Param[Boolean](
+  val ShowBranch = parser register new Param[Boolean](
     description = "If defined, show the branch names. Ex: gmaster status --branch",
     cmd = "--branch",
     defaultValue = false
@@ -53,7 +54,7 @@ object Gmaster {
   /*
   * ACTIONS
   */
-  ArgsParser register new Action (
+  parser register new Action (
     description = "Dump the list of repositories in the .gitmaster file",
     cmd = "dump",
     task = (args: Array[String]) => {
@@ -83,7 +84,7 @@ object Gmaster {
     }
   )
 
-  ArgsParser register new Action (
+  parser register new Action (
     description = "Clone all repositories defined in the .gitmaster file",
     cmd = "init",
     task = (args: Array[String]) => {
@@ -109,7 +110,7 @@ object Gmaster {
     }
   )
 
-  ArgsParser register new Action (
+  parser register new Action (
     description = "Fetch each repositories",
     cmd = "fetch",
     task = (args: Array[String]) => {
@@ -128,7 +129,7 @@ object Gmaster {
     }
   )
 
-  val STATUS = ArgsParser register new Action (
+  val STATUS = parser register new Action (
     description = "Show the status of each repositories",
     cmd = "status",
     task = (args: Array[String]) => {
@@ -166,7 +167,7 @@ object Gmaster {
       Out.stopWait
     })
 
-  ArgsParser register new Action (
+  parser register new Action (
     description = "Pull each repositories",
     cmd = "pull",
     task = (args: Array[String]) => {
@@ -191,7 +192,7 @@ object Gmaster {
     }
   )
 
-  ArgsParser register new Action (
+  parser register new Action (
     description = "Clone the repository",
     cmd = "clone",
     nargs = 1,
@@ -226,17 +227,16 @@ object Gmaster {
     }
   )
 
-
-  ArgsParser register new Action(
+  parser register new Action(
     description = "Show this help",
     cmd = "help",
     task = (args: Array[String]) => {
       Out println "Actions".blue
-      Out println Table(actions.map(action => {
+      Out println Table(parser.actions.map(action => {
         Row(Col(action.cmd), Col(action.description))
       }): _*)
       Out println "Params".blue
-      Out println Table(params.map(param => {
+      Out println Table(parser.params.map(param => {
         Row(Col(param.cmd), Col(param.description))
       }): _*)
     }
@@ -244,7 +244,7 @@ object Gmaster {
 
   def main(args: Array[String]) {
     try {
-      val (actions, _) = ArgsParser.parseArgs(args, STATUS)
+      val (actions, _) = parser.parse(args, STATUS)
       actions.foreach(_.execute)
     } catch {
       case _: TimeoutException => Out.fatal("Timeout of " + TIMEOUT.toSeconds + " seconds is over.")

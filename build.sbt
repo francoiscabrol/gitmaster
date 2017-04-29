@@ -7,6 +7,8 @@ version := "0.9"
 
 scalaVersion := "2.11.8"
 
+libraryDependencies += "io.github.francoiscabrol" %% "scala-args-parser" % "0.1.0"
+
 assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultShellScript))
 
 assemblyJarName in assembly := s"${name.value}-${version.value}"
