@@ -13,6 +13,8 @@ assemblyJarName in assembly := s"${name.value}-${version.value}"
 
 assemblyOutputPath in assembly := file("./gmaster")
 
+libraryDependencies += "commons-io" % "commons-io" % "2.5"
+
 val install = taskKey[String]("Install the binary in the /usr/bin/ folder.")
 install := {
   val binary = new File("gmaster")
