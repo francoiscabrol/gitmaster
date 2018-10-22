@@ -25,21 +25,20 @@ For example, `gitmaster fetch status` is going to first fetch the last remote ve
 
 Install it
 ----------
-This command is going to install the last release for you. You can replace the GITMASTER_PATH to install it in an other folder.
 
+Under Linux/Macos, you have just to copy the "gmaster" file in your bin path. For example under ~/bin.
+
+The following command is going to install the latest release for you. You can replace the GITMASTER_PATH to install it in an other folder (by default the path is ~/bin/gmaster).
 ```
-export GITMASTER_PATH=/usr/bin/gmaster && curl https://raw.githubusercontent.com/francoiscabrol/gitmaster/master/install.sh | bash -x
+curl https://raw.githubusercontent.com/francoiscabrol/gitmaster/master/install.sh | GITMASTER_PATH=$HOME/bin bash -x
 ```
 
-Then you will be able to run it direcly in your terminal.
-`gmaster help`
+Then you should be able to run direcly in your terminal `gmaster help`.
 
 You can try to run `gmaster` in your Workspace to check the status of your repositories.
 
 Requirement: You need java installed. And git of course.
-I tried it under MacOS, Linux Ubuntu and Arch Linux. It should works under window also but I don't know how to install it.
-
-Under Linux/Macos, you have just to copy the "gmaster" file in your bin path. For example under /usr/bin/.
+I tried it under MacOS, Linux Ubuntu and Arch Linux. It should works under window as well but I don't know how to install it.
 
 Build it yourself
 -----------------
