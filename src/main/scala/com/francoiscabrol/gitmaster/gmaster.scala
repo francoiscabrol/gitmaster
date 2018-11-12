@@ -129,10 +129,13 @@ object Gmaster {
     task = (args: Array[String]) => {
       Out startWait "Fetching the git repositories"
       val (gitRepos, notGitRepos) = new File(Dir.value).listGitRepositories(RecursiveLevel.value.toInt)
-      val futures:Future[List[String]] = Future.sequence({
+      val futures = Future.sequence({
         gitRepos.map(repo => {
           Future {
-            GitCmd.fetch(repo)
+            Try(GitCmd.fetch(repo)) match {
+              case Success(res) => Out print repo println " fetched".green
+              case Failure(res) => Out println s"$repo failed to fetch".red println res
+            }
           }
         })
       })
@@ -182,23 +185,23 @@ object Gmaster {
     description = "Pull each repositories",
     cmd = "pull",
     task = (args: Array[String]) => {
-      Out startWait "Pulling each repositories"
       val (gitRepos, notGitRepos) = new File(Dir.value).listGitRepositories(RecursiveLevel.value.toInt)
       val infos = gitRepos map((dir) => {
         Repository.create(dir)
       })
       if (infos.isEmpty)
-        println("No git repository here.")
+        Out println "No git repository here."
       infos.foreach((info) => {
         if (info.status == GitStatus.NOT_SYNC) {
-          Out print info.name print " pulling... ".red
+          Out print info.name print " pulling ".red
           Try(GitCmd.pull(info.dir)) match {
             case Success(_) => Out println "Done".green
             case Failure(_) => Out println "Fail".red
           }
+        } else {
+          Out print info.name println " Already sync".green
         }
       })
-      Out.stopWait
     }
   )
 

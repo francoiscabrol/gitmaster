@@ -1,7 +1,6 @@
 package com.francoiscabrol.gitmaster
 
 import java.io.File
-import java.nio.file.Paths
 
 import com.francoiscabrol.gitmaster.Config.{ConfigFile, RepositoryConfig}
 import com.francoiscabrol.gitmaster.git.{GitCmd, GitStatus}
