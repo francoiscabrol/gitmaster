@@ -1,6 +1,7 @@
 package com.francoiscabrol.gitmaster
 
 import java.io.File
+import java.nio.file.Paths
 
 import com.francoiscabrol.gitmaster.Config.{ConfigFile, RepositoryConfig}
 import com.francoiscabrol.gitmaster.git.{GitCmd, GitStatus}
@@ -13,6 +14,8 @@ case class Repository(dir: File, conf:Option[RepositoryConfig]) {
   val name = dir.getName
 
   lazy val status = GitCmd.status(dir)
+
+  def relativePath(relativePath: String) = dir.getPath.diff(relativePath + "/")
 
   def branch = GitCmd.branch(dir)
 

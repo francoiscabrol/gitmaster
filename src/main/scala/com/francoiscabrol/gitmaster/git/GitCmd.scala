@@ -37,4 +37,5 @@ object GitCmd {
   def clone(url: String, branch: String):String = run(Process("git clone -b " + branch + " " + url))
   def clone(url: String):String = run(Process("git clone " + url))
   def cloneTo(url: String, dest: String):String = run(Process(s"git clone $url $dest"))
+  def cloneTo(url: String, branch: String, dest: String):String = run(Process(s"git clone -b $branch $url $dest"))
 }
