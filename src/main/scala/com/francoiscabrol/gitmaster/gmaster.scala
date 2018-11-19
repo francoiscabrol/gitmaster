@@ -109,15 +109,20 @@ object Gmaster {
         Repository.create(dir)
       })
       val gitReposNames = infos.map(_.dir.getName)
-      val notExistingRepos = conf.repositories.filter(repo => {
+      val (notExistingRepos, existingRepos) = conf.repositories.partition(repo => {
         !gitReposNames.contains(repo.name)
       })
       notExistingRepos.foreach(repo => {
-        Out print "Cloning " + repo.url + " " + repo.branch
-        Try(GitCmd.cloneTo(repo.url, repo.branch, repo.relativePath)) match {
+        val dest = Dir.value + "/" + repo.relativePath
+        Out print "Cloning " + repo.url + " " + repo.branch + " to " + dest
+        Try(GitCmd.cloneTo(repo.url, repo.branch, dest)) match {
           case Success(res) => Out println " Done".green
           case Failure(_) => Out println " Impossible to clone -b " + repo.branch + " "+ repo.url
         }
+      })
+      existingRepos.foreach(repo => {
+        val dest = Dir.value + "/" + repo.relativePath
+        Out print s"$dest " println "already exists".green
       })
       Out.stopWait
     }
