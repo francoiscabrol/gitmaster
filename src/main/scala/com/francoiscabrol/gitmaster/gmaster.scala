@@ -229,26 +229,6 @@ object Gmaster {
   )
 
   ArgsParser register new Action(
-    description = "Clone the template and initialize it. Ex: gmaster template $templateUrl",
-    cmd = "template",
-    nargs = 1,
-    task = (args: Array[String]) => {
-      val templateUrl = args(0)
-      val dest = readLine("Name? ")
-      Out.startWait("Cloning " + templateUrl)
-      Try(GitCmd.cloneTo(templateUrl, dest)) match {
-        case Success(res) => {
-          Out.stopWait.startWait("Initialize the template")
-          FileUtils.deleteDirectory(new File(s"$dest/.git"))
-          Out.println(s"The template $templateUrl was cloned and initialized.")
-        }
-        case Failure(_) => Out.stopWait.println("Impossible to clone the template.")
-      }
-      Out.stopWait
-    }
-  )
-
-  ArgsParser register new Action(
     description = "Show this help",
     cmd = "help",
     task = (args: Array[String]) => {
