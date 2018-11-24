@@ -14,6 +14,8 @@ case class Repository(dir: File, conf:Option[RepositoryConfig]) {
 
   lazy val status = GitCmd.status(dir)
 
+  def relativePath(relativePath: String) = dir.getPath.diff(relativePath + "/")
+
   def branch = GitCmd.branch(dir)
 
   def isGoodBranchCheckout:Option[Boolean] = conf match {

@@ -27,8 +27,16 @@ object Gmaster {
   val TIMEOUT = 60.seconds
 
   implicit class FileDecored(file: File) {
-    def listDirectories: List[File] = file.listFiles.filter(_.isDirectory).toList
+    def listDirectories = listDirectoriesRecurively(1)
+    def listDirectoriesRecurively(level: Int): List[File] = {
+      val files = file.listFiles.filter(_.isDirectory).toList
+      if (level > 1)
+        files ++ files.map(_.listDirectoriesRecurively(level-1)).flatten
+      else
+        files
+    }
     def isGitRepo: Boolean = file.listFiles.exists(f => f.getName == ".git")
+    def listGitRepositories(level: Int = 1): (List[File], List[File]) = file.listDirectoriesRecurively(level).filter(!_.isHidden).partition(_.isGitRepo)
   }
 
   /*
@@ -38,6 +46,12 @@ object Gmaster {
     description = "Directory where to execute the actions. Ex: gmaster --dir ~/Workpace. By default, it is the current directory.",
     cmd = "--dir",
     defaultValue = "."
+  )
+
+  val RecursiveLevel = ArgsParser register new Param[String](
+    description = "Levels of recursion. Ex: gmaster --level 2. By default, level is set to 1.",
+    cmd = "--level",
+    defaultValue = "1"
   )
 
   val InlineStatus = ArgsParser register new Param[Boolean](
@@ -64,15 +78,14 @@ object Gmaster {
       confirm match {
         case "yes" => {
           Out startWait "Dump the repository list"
-          val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
-          val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
+          val (gitRepos, notGitRepos) = new File(Dir.value).listGitRepositories(RecursiveLevel.value.toInt)
           val infos = gitRepos map((dir) => {
             Repository.create(dir)
           })
           val repositoryConfigs = ListBuffer[RepositoryConfig]()
           infos.map(info => {
             info.getRemoteUrl match {
-              case Success(url) => repositoryConfigs += RepositoryConfig(url, info.branch)
+              case Success(url) => repositoryConfigs += RepositoryConfig(url, info.branch, info.relativePath(Dir.value))
               case Failure(e:GitMasterError) => Out println "[WARNING] " + info.name + ": " + e.message
               case Failure(e) => Out println "[ERROR] " +  info.name + ": " + e.toString
             }
@@ -90,22 +103,26 @@ object Gmaster {
     cmd = "init",
     task = (args: Array[String]) => {
       Out startWait "Initialiazing"
-      val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
-      val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
+      val (gitRepos, notGitRepos) = new File(Dir.value).listGitRepositories(RecursiveLevel.value.toInt)
       val conf = ConfigFile.load(new File(Dir.value + "/.gitmaster"))
       val infos = gitRepos map((dir) => {
         Repository.create(dir)
       })
       val gitReposNames = infos.map(_.dir.getName)
-      val notExistingRepos = conf.repositories.filter(repo => {
+      val (notExistingRepos, existingRepos) = conf.repositories.partition(repo => {
         !gitReposNames.contains(repo.name)
       })
       notExistingRepos.foreach(repo => {
-        Out print "Cloning " + repo.url + " " + repo.branch
-        Try(GitCmd.clone(repo.url, repo.branch)) match {
+        val dest = Dir.value + "/" + repo.relativePath
+        Out print "Cloning " + repo.url + " " + repo.branch + " to " + dest
+        Try(GitCmd.cloneTo(repo.url, repo.branch, dest)) match {
           case Success(res) => Out println " Done".green
           case Failure(_) => Out println " Impossible to clone -b " + repo.branch + " "+ repo.url
         }
+      })
+      existingRepos.foreach(repo => {
+        val dest = Dir.value + "/" + repo.relativePath
+        Out print s"$dest " println "already exists".green
       })
       Out.stopWait
     }
@@ -116,12 +133,14 @@ object Gmaster {
     cmd = "fetch",
     task = (args: Array[String]) => {
       Out startWait "Fetching the git repositories"
-      val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
-      val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
-      val futures:Future[List[String]] = Future.sequence({
+      val (gitRepos, notGitRepos) = new File(Dir.value).listGitRepositories(RecursiveLevel.value.toInt)
+      val futures = Future.sequence({
         gitRepos.map(repo => {
           Future {
-            GitCmd.fetch(repo)
+            Try(GitCmd.fetch(repo)) match {
+              case Success(res) => Out print repo println " fetched".green
+              case Failure(res) => Out println s"$repo failed to fetch".red println res
+            }
           }
         })
       })
@@ -135,8 +154,7 @@ object Gmaster {
     cmd = "status",
     task = (args: Array[String]) => {
       Out startWait "Get the git repositories\' status"
-      val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
-      val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
+      val (gitRepos, notGitRepos) = new File(Dir.value).listGitRepositories(RecursiveLevel.value.toInt)
       val infos = gitRepos map((dir) => {
         Repository.create(dir)
       })
@@ -146,9 +164,9 @@ object Gmaster {
         if (InlineStatus.value) {
           val rows = infos.map(repository => {
             if (ShowBranch.value)
-              Row(Col(repository.name), Col(repository.branch), Col(GitStatus.litteralStatus(repository.status)))
+              Row(Col(repository.relativePath(Dir.value)), Col(repository.branch), Col(GitStatus.litteralStatus(repository.status)))
             else
-              Row(Col(repository.name), Col(GitStatus.litteralStatus(repository.status)))
+              Row(Col(repository.relativePath(Dir.value)), Col(GitStatus.litteralStatus(repository.status)))
           })
           Out.println(Table(rows: _*)).ln
         } else {
@@ -157,9 +175,9 @@ object Gmaster {
             Out.println(GitStatus.litteralStatus(status))
             val rows = repositories.map(repository => {
               if (ShowBranch.value)
-                Row(Col(repository.name),Col(repository.branch))
+                Row(Col(repository.relativePath(Dir.value)),Col(repository.branch))
               else
-                Row(Col(repository.name))
+                Row(Col(repository.relativePath(Dir.value)))
             })
             Out.println(Table(rows: _*)).ln
           }
@@ -172,24 +190,23 @@ object Gmaster {
     description = "Pull each repositories",
     cmd = "pull",
     task = (args: Array[String]) => {
-      Out startWait "Pulling each repositories"
-      val directories = new File(Dir.value).listDirectories.filter(!_.isHidden)
-      val (gitRepos, notGitRepos) = directories.partition(_.isGitRepo)
+      val (gitRepos, notGitRepos) = new File(Dir.value).listGitRepositories(RecursiveLevel.value.toInt)
       val infos = gitRepos map((dir) => {
         Repository.create(dir)
       })
       if (infos.isEmpty)
-        println("No git repository here.")
+        Out println "No git repository here."
       infos.foreach((info) => {
         if (info.status == GitStatus.NOT_SYNC) {
-          Out print info.name print " pulling... ".red
+          Out print info.name print " pulling ".red
           Try(GitCmd.pull(info.dir)) match {
             case Success(_) => Out println "Done".green
             case Failure(_) => Out println "Fail".red
           }
+        } else {
+          Out print info.name println " Already sync".green
         }
       })
-      Out.stopWait
     }
   )
 
@@ -214,7 +231,7 @@ object Gmaster {
           val repoInfo = Repository.create(repoDir)
           repoInfo.getRemoteUrl match {
             case Success(url) => {
-              config.repositories = config.repositories ::: List(RepositoryConfig(url, repoInfo.branch))
+              config.repositories = config.repositories ::: List(RepositoryConfig(url, repoInfo.branch, repoInfo.relativePath(Dir.value)))
               config.write
               Out println "Done".green
             }
