@@ -3,7 +3,7 @@ GitMaster - Manage a set of git repositories
 
 GitMaster is a small command line tool with two simple goals:
 
-1. Offer an overview of all your git repositories in any directory as your $HOME/WORKSPACE. For example using the command `gmaster status`.
+1. Offer an overview of all your git repositories in any directory as your $HOME/WORKSPACE. For example using the command `gmaster status` or `gmaster fetch status`.
 <img src="./gitmaster_1.png" >
 
 2. Manage a set of git repositories with a third git "master repo". For example, you have a project with several services or subprojects, Each project is store in a different repository. You want to allows any developer to clone the master repository and then clone all repositories. Then you want to allow the developer to check or pull every repositories at the same time. This tool do that.
@@ -13,11 +13,19 @@ Features
 `gmaster help` list the commands:
 
 ```
+Actions
  | dump   Dump the list of repositories in the .gitmaster file
  | init   Clone all repositories defined in the .gitmaster file
  | fetch  Fetch each repositories
  | status Show the status of each repositories
  | pull   Pull each repositories
+ | clone  Clone the repository
+ | help   Show this help
+Params
+ | --dir    Directory where to execute the actions. Ex: gmaster --dir ~/Workpace. By default, it is the current directory.
+ | --level  Levels of recursion. Ex: gmaster --level 2. By default, level is set to 1.
+ | --group  If defined, show the repositories grouped by status. Ex: gmaster status --group. By default, it is inline.
+ | --branch If defined, show the branch names. Ex: gmaster status --branch
 ```
 
 Several commands can be executed in the same run. 
