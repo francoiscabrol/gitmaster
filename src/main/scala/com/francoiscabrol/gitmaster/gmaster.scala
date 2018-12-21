@@ -86,7 +86,6 @@ object Gmaster {
           infos.map(info => {
             info.getRemoteUrl match {
               case Success(url) => repositoryConfigs += RepositoryConfig(url, info.branch, info.relativePath(Dir.value))
-              case Failure(e:GitMasterError) => Out println "[WARNING] " + info.name + ": " + e.message
               case Failure(e) => Out println "[ERROR] " +  info.name + ": " + e.toString
             }
           })

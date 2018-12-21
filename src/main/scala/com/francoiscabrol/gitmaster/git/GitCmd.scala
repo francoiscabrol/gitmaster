@@ -30,10 +30,7 @@ object GitCmd {
     case _ => GitStatus.UNEXPECTED_ERROR
   }
   def pull(dir: File):String = run(Process("git pull", dir))
-  def remoteUrl(dir: File):String = run(Process("git remote show origin", dir)).split(" ").find((str) => str.contains(".git") || str.contains("http")) match {
-    case Some(url) => url
-    case None => throw new GitCmdError("Impossible to parse the remote url of " + dir.getName)
-  }
+  def remoteUrl(dir: File):String = run(Process("git remote get-url origin", dir))
   def clone(url: String, branch: String):String = run(Process("git clone -b " + branch + " " + url))
   def clone(url: String):String = run(Process("git clone " + url))
   def cloneTo(url: String, dest: String):String = run(Process(s"git clone $url $dest"))
