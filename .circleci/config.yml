@@ -24,7 +24,7 @@ jobs:
           command: cat /dev/null | sbt assembly
       - store_artifacts: # for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
           path: gmaster
-          destination: output
+          destination: gmaster
       - save_cache:
           key: sbt-cache
           paths:
