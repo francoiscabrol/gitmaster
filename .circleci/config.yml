@@ -23,7 +23,7 @@ jobs:
           name: Sbt assembly
           command: cat /dev/null | sbt assembly
       - store_artifacts: # for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
-          path: target/universal/samplescala.zip
+          path: gmaster
           destination: output
       - save_cache:
           key: sbt-cache
