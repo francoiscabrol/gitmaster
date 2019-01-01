@@ -3,9 +3,18 @@ import java.nio.file.{Files, StandardCopyOption}
 
 name := "gitmaster"
 
-version := "0.9"
-
 scalaVersion := "2.11.8"
+
+enablePlugins(GitVersioning)
+
+git.useGitDescribe := true
+
+git.gitTagToVersionNumber := { tag: String => {
+  println(tag)
+  if(tag.length > 1) Some(tag)
+  else None
+}
+}
 
 assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultShellScript))
 
@@ -23,3 +32,17 @@ install := {
   Files.copy(binary.toPath, dest.toPath, StandardCopyOption.COPY_ATTRIBUTES)
   "Done"
 }
+
+sourceGenerators in Compile += Def.task {
+  val file = (sourceManaged in Compile).value / "gitmaster" / "BuildInfo.scala"
+
+  IO.write(
+    file,
+    s"""package gitmaster
+       |object BuildInfo {
+       |  val Version = "${version.value}"
+       |}""".stripMargin
+  )
+
+  Seq(file)
+}.taskValue
