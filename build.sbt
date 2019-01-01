@@ -9,11 +9,9 @@ enablePlugins(GitVersioning)
 
 git.useGitDescribe := true
 
-git.gitTagToVersionNumber := { tag: String => {
-  println(tag)
+git.gitTagToVersionNumber := { tag: String =>
   if(tag.length > 1) Some(tag)
   else None
-}
 }
 
 assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultShellScript))
