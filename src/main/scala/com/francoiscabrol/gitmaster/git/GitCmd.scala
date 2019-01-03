@@ -25,6 +25,7 @@ object GitCmd {
     case x if x.contains("to be committed") => GitStatus.CHANGES_TO_COMMIT
     case x if x.contains("not staged") => GitStatus.UNSTAGE_FILES
     case x if x.contains("up-to-date") => GitStatus.UP_TO_DATE
+    case x if x.contains("up to date") => GitStatus.UP_TO_DATE
     case x if x.contains("git pull") => GitStatus.NOT_SYNC
     case x if x.contains("nothing to commit") => GitStatus.NO_REMOTE
     case _ => GitStatus.UNEXPECTED_ERROR
