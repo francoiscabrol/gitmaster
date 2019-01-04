@@ -48,15 +48,15 @@ jobs:
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./gmaster
 workflows:
   version: 2
-    workflow:
-      jobs:
-      - build  # your custom job from your config, that builds your code
-      - hold: # <<< A job that will require manual approval in the CircleCI web application.
-          type: approval # <<< This key-value pair will set your workflow to a status of "On Hold"
-          requires: # We only run the "hold" job when test2 has succeeded
-           - build
-      # On approval of the `hold` job, any successive job that requires the `hold` job will run.
-      # In this case, a user is manually triggering the deploy job.
-      - publish-github-release:
-          requires:
-            - hold
+  workflow:
+    jobs:
+    - build  # your custom job from your config, that builds your code
+    - hold: # <<< A job that will require manual approval in the CircleCI web application.
+        type: approval # <<< This key-value pair will set your workflow to a status of "On Hold"
+        requires: # We only run the "hold" job when test2 has succeeded
+          - build
+    # On approval of the `hold` job, any successive job that requires the `hold` job will run.
+    # In this case, a user is manually triggering the deploy job.
+    - publish-github-release:
+        requires:
+          - hold
