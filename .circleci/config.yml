@@ -39,7 +39,7 @@ jobs:
       - image: circleci/golang:1.8
     steps:
       - attach_workspace:
-          at: ./
+          at: ~/output
       - run:
           name: "Publish Release on GitHub"
           command: |
