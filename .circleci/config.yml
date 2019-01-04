@@ -49,7 +49,7 @@ jobs:
 
 workflows:
   version: 2
-    build-test-and-approval-publish:
+    workflow:
       jobs:
       - build  # your custom job from your config, that builds your code
       - hold: # <<< A job that will require manual approval in the CircleCI web application.
