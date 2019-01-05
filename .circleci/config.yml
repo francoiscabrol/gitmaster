@@ -7,7 +7,7 @@ jobs:
     environment:
       SBT_VERSION: 0.13.15
     steps:
-      - run: echo 'export ARTIFACT_BUILD=$CIRCLE_PROJECT_REPONAME-$CIRCLE_BUILD_NUM.zip' >> $BASH_ENV
+      - run: echo 'export ARTIFACT_BUILD=$CIRCLE_PROJECT_REPONAME-$CIRCLE_BUILD_NUM' >> $BASH_ENV
       - run:
           name: Get sbt binary
           command: |
@@ -35,12 +35,11 @@ jobs:
           command: |
               mv gmaster $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
   publish-github-release:
-    working_directory: ~/output
     docker:
       - image: circleci/golang:1.8
     steps:
       - attach_workspace:
-          at: ./
+          at: $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
       - run:
           name: "Publish Release on GitHub"
           command: |
