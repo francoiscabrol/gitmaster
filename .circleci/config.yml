@@ -35,11 +35,10 @@ jobs:
           command: |
               mv gmaster $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
   publish-github-release:
+    working_directory: ~/output
     docker:
       - image: circleci/golang:1.8
     steps:
-      - attach_workspace:
-          at: $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
       - run:
           name: "Publish Release on GitHub"
           command: |
