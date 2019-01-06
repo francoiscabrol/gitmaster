@@ -32,9 +32,9 @@ jobs:
             - "~/.sbt"
             - "~/.m2"
       - persist_to_workspace:
-        root: /tmp
-        paths:
-          - gmaster
+          root: /tmp
+          paths:
+            - gmaster
       - deploy:
           command: |
               mv gmaster $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
