@@ -1,7 +1,7 @@
 version: 2
 jobs:
   build:
-    working_directory: /tmp
+    working_directory: ~/build
     docker:
       - image: openjdk:8
     environment:
@@ -32,19 +32,19 @@ jobs:
             - "~/.sbt"
             - "~/.m2"
       - persist_to_workspace:
-          root: /tmp
+          root: ~/build
           paths:
             - gmaster
       - deploy:
           command: |
               mv gmaster $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
   publish-github-release:
-    working_directory: /tmp
+    working_directory: ~/build
     docker:
       - image: circleci/golang:1.8
     steps:
       - attach_workspace:
-        at: /tmp
+        at: ~/build
       - run:
           name: "Publish Release on GitHub"
           command: |
