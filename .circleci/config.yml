@@ -36,6 +36,7 @@ jobs:
           root: ~/build
           paths:
             - gmaster
+            - version.txt
       - deploy:
           command: |
               mv gmaster $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
@@ -50,7 +51,7 @@ jobs:
           name: "Publish Release on GitHub"
           command: |
             go get github.com/tcnksm/ghr
-            VERSION=$(cat version.txt)
+            VERSION=$(cat ./version.txt)
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./gmaster
 workflows:
   version: 2
