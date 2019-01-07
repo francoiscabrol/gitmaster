@@ -50,7 +50,6 @@ jobs:
       - attach_workspace:
           at: ~/build
       - run:
-          context: GITHUB_GITMASTER
           name: "Publish Release on GitHub"
           command: |
             go get github.com/tcnksm/ghr
@@ -69,5 +68,6 @@ workflows:
     # On approval of the `hold` job, any successive job that requires the `hold` job will run.
     # In this case, a user is manually triggering the deploy job.
     - publish-github-release:
+        context: GITHUB_GITMASTER
         requires:
           - hold
