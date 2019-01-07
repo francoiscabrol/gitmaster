@@ -32,11 +32,13 @@ jobs:
             - "~/.sbt"
             - "~/.m2"
       - run: ./gmaster version > version.txt
+      - run: git describe --abbrev=0 --tags > tag.txt
       - persist_to_workspace:
           root: ~/build
           paths:
             - gmaster
             - version.txt
+            - tag.txt
       - deploy:
           command: |
               mv gmaster $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
@@ -48,10 +50,12 @@ jobs:
       - attach_workspace:
           at: ~/build
       - run:
+          context: GITHUB_GITMASTER
           name: "Publish Release on GitHub"
           command: |
             go get github.com/tcnksm/ghr
             VERSION=$(cat ./version.txt)
+            echo $VERSION
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./gmaster
 workflows:
   version: 2
