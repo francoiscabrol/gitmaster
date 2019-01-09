@@ -31,14 +31,12 @@ jobs:
             - "~/.ivy2/cache"
             - "~/.sbt"
             - "~/.m2"
-      - run: ./gmaster version > version.txt
-      - run: git describe --abbrev=0 --tags > tag.txt
+      - run: ./gmaster --version > version.txt
       - persist_to_workspace:
           root: ~/build
           paths:
             - gmaster
             - version.txt
-            - tag.txt
       - deploy:
           command: |
               mv gmaster $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD

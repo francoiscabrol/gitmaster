@@ -247,7 +247,7 @@ object Gmaster {
 
   ArgsParser register new Action(
     description = "Print the version number",
-    cmd = "version",
+    cmd = "--version",
     task = (args: Array[String]) => {
       Out println BuildInfo.Version
     }
