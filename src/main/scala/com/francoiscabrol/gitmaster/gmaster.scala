@@ -12,6 +12,7 @@ import com.francoiscabrol.screen.TablePrinter._
 import com.francoiscabrol.screen.Colored._
 import com.francoiscabrol.screen.Out
 import com.francoiscabrol.gitmaster.Config._
+import gitmaster.BuildInfo
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
@@ -241,6 +242,14 @@ object Gmaster {
         case Failure(_) => Out stopWait; Out println "Impossible to clone " + repo
       }
       Out stopWait
+    }
+  )
+
+  ArgsParser register new Action(
+    description = "Print the version number",
+    cmd = "--version",
+    task = (args: Array[String]) => {
+      Out println BuildInfo.Version
     }
   )
 

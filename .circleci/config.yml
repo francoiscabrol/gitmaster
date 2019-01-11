@@ -1,13 +1,13 @@
 version: 2
 jobs:
   build:
-    working_directory: ~/output
+    working_directory: ~/build
     docker:
       - image: openjdk:8
     environment:
       SBT_VERSION: 0.13.15
     steps:
-      - run: echo 'export ARTIFACT_BUILD=$CIRCLE_PROJECT_REPONAME-$CIRCLE_BUILD_NUM.zip' >> $BASH_ENV
+      - run: echo 'export ARTIFACT_BUILD=$CIRCLE_PROJECT_REPONAME-$CIRCLE_BUILD_NUM' >> $BASH_ENV
       - run:
           name: Get sbt binary
           command: |
@@ -23,14 +23,53 @@ jobs:
           name: Sbt assembly
           command: cat /dev/null | sbt assembly
       - store_artifacts: # for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
-          path: target/universal/samplescala.zip
-          destination: output
+          path: gmaster
+          destination: gmaster
       - save_cache:
           key: sbt-cache
           paths:
             - "~/.ivy2/cache"
             - "~/.sbt"
             - "~/.m2"
+      - run: ./gmaster --version > version.txt
+      - persist_to_workspace:
+          root: ~/build
+          paths:
+            - gmaster
+            - version.txt
       - deploy:
           command: |
               mv gmaster $CIRCLE_ARTIFACTS/$ARTIFACT_BUILD
+  publish-github-release:
+    working_directory: ~/build
+    docker:
+      - image: circleci/golang:1.8
+    steps:
+      - attach_workspace:
+          at: ~/build
+      - run:
+          name: "Publish Release on GitHub"
+          command: |
+            go get github.com/tcnksm/ghr
+            VERSION=$(cat ./version.txt)
+            echo $VERSION
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./gmaster
+workflows:
+  version: 2
+  workflow:
+    jobs:
+    - build:  # your custom job from your config, that builds your code
+        filters:
+          tags:
+            only: /^\d+\.\d+\.\d+$/
+    # On approval of the `hold` job, any successive job that requires the `hold` job will run.
+    # In this case, a user is manually triggering the deploy job.
+    - publish-github-release:
+        context: GITHUB_GITMASTER
+        requires:
+          - build
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /^\d+\.\d+\.\d+$/

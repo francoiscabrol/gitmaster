@@ -14,13 +14,14 @@ Features
 
 ```
 Actions
- | dump   Dump the list of repositories in the .gitmaster file
- | init   Clone all repositories defined in the .gitmaster file
- | fetch  Fetch each repositories
- | status Show the status of each repositories
- | pull   Pull each repositories
- | clone  Clone the repository
- | help   Show this help
+ | dump      Dump the list of repositories in the .gitmaster file
+ | init      Clone all repositories defined in the .gitmaster file
+ | fetch     Fetch each repositories
+ | status    Show the status of each repositories
+ | pull      Pull each repositories
+ | clone     Clone the repository
+ | --version Print the version number
+ | help      Show this help
 Params
  | --dir    Directory where to execute the actions. Ex: gmaster --dir ~/Workpace. By default, it is the current directory.
  | --level  Levels of recursion. Ex: gmaster --level 2. By default, level is set to 1.
@@ -62,3 +63,10 @@ Requirement: You need sbt (simple build tool) installed.
 
 Run it with `sbt run ARGUMENTS` like `sbt run help` or `sbt run --dir ~/path/of/repositories/ status`
 
+Create a release
+----------------
+
+After having merge a branch in master, the steps for creating a release are:
+- Create the pre-release using the github interface with the version number as name.
+- Wait for the CI proccess to build and upload the binary file as pre-release artifact.
+- Set this pre-release as release.
