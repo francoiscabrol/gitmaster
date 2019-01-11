@@ -62,3 +62,10 @@ Requirement: You need sbt (simple build tool) installed.
 
 Run it with `sbt run ARGUMENTS` like `sbt run help` or `sbt run --dir ~/path/of/repositories/ status`
 
+Create a release
+----------------
+
+After having merge a branch in master, the steps for creating a release are:
+- Create the pre-release using the github interface with the version number as name.
+- Wait for the CI proccess to build and upload the binary file as pre-release artifact.
+- Set this pre-release as release.
